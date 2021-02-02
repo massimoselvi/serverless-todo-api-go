@@ -31,7 +31,7 @@ before_script:
 script:
   - npm run build --prefix ui 
   - go test -coverprofile c.out ./...
-  - env GOOS=linux go build -ldflags="-s -w" -o bin/todos internal/lambda/todos/main.go
+  - env GOOS=linux go build -ldflags="-s -w" -o bin/todos server/lambda/todos/main.go
 
 after_script:
   - ./cc-test-reporter after-build -t gocov --exit-code $TRAVIS_TEST_RESULT
