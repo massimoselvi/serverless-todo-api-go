@@ -1,0 +1,46 @@
+sudo: required
+
+language: go
+
+env:
+  - GO111MODULE=on CC_TEST_REPORTER_ID=320c3b1aa2b0d201eff445e9b79e52b188b9c9816a783fd41b85da1af8bb6f29
+
+go:
+  - 1.12
+
+install:
+  - pip install --user awscli
+  - mkdir bin
+  - export PATH=$PATH:$PWD/bin/
+  - go get github.com/axw/gocov/gocov
+  - curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
+  - chmod +x ./cc-test-reporter
+  - curl -L https://releases.hashicorp.com/terraform/0.12.4/terraform_0.12.4_linux_amd64.zip > ./terraform.zip
+  - unzip terraform.zip -d ./bin
+  - chmod +x ./bin/terraform
+  - curl -L https://github.com/gruntwork-io/terragrunt/releases/download/v0.19.8/terragrunt_linux_amd64 > ./bin/terragrunt
+  - chmod +x ./bin/terragrunt
+  - npm install -g serverless
+  - serverless plugin install --name serverless-domain-manager
+  - serverless plugin install --name serverless-s3-sync
+  - npm install --prefix ui
+  
+before_script:
+  - ./cc-test-reporter before-build
+
+script:
+  - npm run build --prefix ui 
+  - go test -coverprofile c.out ./...
+  - env GOOS=linux go build -ldflags="-s -w" -o bin/todos internal/lambda/todos/main.go
+
+after_script:
+  - ./cc-test-reporter after-build -t gocov --exit-code $TRAVIS_TEST_RESULT
+  - terragrunt get --terragrunt-working-dir infrastructure/terraform/dynamodb
+  - terragrunt plan --terragrunt-working-dir infrastructure/terraform/dynamodb
+  - terragrunt apply --terragrunt-working-dir infrastructure/terraform/dynamodb
+  - terragrunt get --terragrunt-working-dir infrastructure/terraform/iam
+  - terragrunt plan --terragrunt-working-dir infrastructure/terraform/iam
+  - terragrunt apply --terragrunt-working-dir infrastructure/terraform/iam
+  - SLS_DEBUG=* serverless create_domain --verbose
+  - SLS_DEBUG=* serverless deploy --verbose
+  - aws s3 sync ui/dist/ s3://www-all4days-net/

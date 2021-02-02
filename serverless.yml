@@ -1,0 +1,52 @@
+service: todo
+
+frameworkVersion: '>=1.28.0 <2.0.0'
+
+plugins:
+  - serverless-domain-manager
+
+custom:
+  customDomain:
+    domainName: api.all4days.net
+    basePath: "v1"
+    stage: ${self:provider.stage}
+    createRoute53Record: true
+    certificateName: '*.all4days.net'
+    endpointType: 'regional'
+
+provider:
+  name: aws
+  runtime: go1.x
+  region: us-west-2
+  role: arn:aws:iam::478114782390:role/lambda-todo-executor
+
+package:
+  exclude:
+    - ./**
+  include:
+    - ./bin/**
+
+functions:
+  todos:
+    handler: bin/todos
+    events:
+      - http:
+          path: todos
+          method: get
+          cors: true
+      - http:
+          path: todos/{id}
+          method: get
+          cors: true
+      - http:
+          path: todos
+          method: post
+          cors: true
+      - http:
+          path: todos/{id}
+          method: put
+          cors: true
+      - http:
+          path: todos/{id}
+          method: delete
+          cors: true
